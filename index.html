@@ -398,26 +398,34 @@
                     throw new Error(data.message || data.error || 'API tidak berhasil memproses tautan ini.');
                 }
 
-                const videoUrl = findFirstUrl(data, ['play', 'play_url', 'video_url', 'download_url', 'url', 'nowm', 'no_watermark', 'without_watermark', 'hdplay', 'mp4']);
-                const audioUrl = findFirstUrl(data, ['mp3', 'audio', 'audio_url', 'music', 'music_url', 'mp3_url']);
+                // API NexaDev mengembalikan link download dalam array download_links.
+                const links = Array.isArray(data.download_links) ? data.download_links : [];
+                const mp4Item = links.find(item => /mp4/i.test(String(item.type || '')) && item.url);
+                const mp3Item = links.find(item => /mp3|audio/i.test(String(item.type || '')) && item.url);
+                const videoUrl = mp4Item?.url || findFirstUrl(data, ['play', 'play_url', 'video_url', 'download_url', 'nowm', 'no_watermark', 'without_watermark', 'hdplay', 'mp4']);
+                const audioUrl = mp3Item?.url || findFirstUrl(data, ['mp3', 'audio', 'audio_url', 'music', 'music_url', 'mp3_url']);
                 if (!videoUrl) throw new Error(data.message || 'Link video tidak ditemukan pada respons API.');
 
                 downloadLinks.mp4 = videoUrl;
                 downloadLinks.mp3 = audioUrl;
                 const authorInfo = getAuthorInfo(data);
                 videoInfo.title = getNestedValue(data, ['title', 'desc', 'description', 'caption', 'text']) || 'Video TikTok siap diunduh';
-                videoInfo.author = authorInfo.username || authorInfo.name ||
-                    getNestedValue(data, ['unique_id', 'uniqueId', 'username', 'user_name', 'nickname', 'nick_name', 'author_name']) || 'TikTok';
+                // Field "author": "NexaDev" pada respons ini adalah label API, bukan metadata akun TikTok.
+                // Jangan menampilkannya sebagai username TikTok palsu.
+                const usernameFromMetadata = authorInfo.username ||
+                    getNestedValue(data, ['unique_id', 'uniqueId', 'username', 'user_name', 'handle']);
+                const nameFromMetadata = authorInfo.name ||
+                    getNestedValue(data, ['nickname', 'nick_name', 'display_name', 'author_name']);
+                videoInfo.author = usernameFromMetadata || '';
                 videoInfo.avatar = authorInfo.avatar || findFirstUrl(data, ['avatar_url', 'avatarUrl', 'avatar_thumb', 'profile_picture', 'profilePicture', 'head_image_url']) || '';
-                videoInfo.cover = findFirstUrl(data, ['cover', 'cover_url', 'thumbnail', 'thumbnail_url', 'origin_cover', 'originCover']) || '';
+                videoInfo.cover = data.thumbnail || findFirstUrl(data, ['cover', 'cover_url', 'thumbnail', 'thumbnail_url', 'origin_cover', 'originCover']) || '';
 
                 const titleEl = resultCard.querySelector('h3');
                 const subtitleEl = titleEl?.parentElement?.querySelector('p');
                 const descriptionEl = resultCard.querySelector('.text-gray-300.text-sm');
                 const images = resultCard.querySelectorAll('img');
-                const authorName = String(videoInfo.author).replace(/^@/, '');
-                if (titleEl) titleEl.textContent = '@' + authorName;
-                if (subtitleEl) subtitleEl.textContent = authorInfo.name && authorInfo.name !== videoInfo.author ? authorInfo.name : 'Akun dari tautan TikTok';
+                if (titleEl) titleEl.textContent = videoInfo.author ? '@' + String(videoInfo.author).replace(/^@/, '') : 'Akun TikTok';
+                if (subtitleEl) subtitleEl.textContent = nameFromMetadata || (videoInfo.author ? 'Akun dari tautan TikTok' : 'Info akun tidak disediakan API');
                 if (descriptionEl) descriptionEl.textContent = videoInfo.title;
                 if (images[0]) {
                     images[0].src = videoInfo.cover || 'https://placehold.co/400x700/121212/25F4EE?text=TikTok+Video';
