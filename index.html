@@ -313,6 +313,33 @@
             return null;
         }
 
+
+        function getAuthorInfo(obj, depth = 0) {
+            if (!obj || typeof obj !== 'object' || depth > 6) return {};
+            const authorKeys = ['author', 'user', 'owner', 'author_info', 'user_info', 'authorInfo', 'userInfo'];
+            for (const key of authorKeys) {
+                const candidate = obj[key];
+                if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
+                    const name = candidate.nickname || candidate.nick_name || candidate.display_name ||
+                        candidate.name || candidate.username || candidate.unique_id || candidate.uniqueId ||
+                        candidate.sec_uid || candidate.id;
+                    const username = candidate.unique_id || candidate.uniqueId || candidate.username ||
+                        candidate.user_name || candidate.handle;
+                    const avatar = candidate.avatar || candidate.avatar_url || candidate.avatarUrl ||
+                        candidate.avatar_thumb || candidate.avatarThumb || candidate.profile_picture ||
+                        candidate.profilePicture || candidate.head_image_url;
+                    if (name || username || avatar) return { name: name ? String(name) : '', username: username ? String(username) : '', avatar: typeof avatar === 'string' ? avatar : '' };
+                }
+            }
+            for (const value of Object.values(obj)) {
+                if (value && typeof value === 'object') {
+                    const found = getAuthorInfo(value, depth + 1);
+                    if (found.name || found.username || found.avatar) return found;
+                }
+            }
+            return {};
+        }
+
         function setButtonAvailability(type, available) {
             const button = document.querySelector(`button[onclick="triggerDownload('${type}')"]`);
             if (!button) return;
@@ -377,24 +404,28 @@
 
                 downloadLinks.mp4 = videoUrl;
                 downloadLinks.mp3 = audioUrl;
-                videoInfo.title = getNestedValue(data, ['title', 'desc', 'description', 'caption']) || 'Video TikTok siap diunduh';
-                videoInfo.author = getNestedValue(data, ['author', 'username', 'nickname', 'unique_id']) || 'TikTok';
-                videoInfo.cover = findFirstUrl(data, ['cover', 'cover_url', 'thumbnail', 'thumbnail_url', 'origin_cover', 'avatar']) || '';
+                const authorInfo = getAuthorInfo(data);
+                videoInfo.title = getNestedValue(data, ['title', 'desc', 'description', 'caption', 'text']) || 'Video TikTok siap diunduh';
+                videoInfo.author = authorInfo.username || authorInfo.name ||
+                    getNestedValue(data, ['unique_id', 'uniqueId', 'username', 'user_name', 'nickname', 'nick_name', 'author_name']) || 'TikTok';
+                videoInfo.avatar = authorInfo.avatar || findFirstUrl(data, ['avatar_url', 'avatarUrl', 'avatar_thumb', 'profile_picture', 'profilePicture', 'head_image_url']) || '';
+                videoInfo.cover = findFirstUrl(data, ['cover', 'cover_url', 'thumbnail', 'thumbnail_url', 'origin_cover', 'originCover']) || '';
 
                 const titleEl = resultCard.querySelector('h3');
                 const subtitleEl = titleEl?.parentElement?.querySelector('p');
                 const descriptionEl = resultCard.querySelector('.text-gray-300.text-sm');
                 const images = resultCard.querySelectorAll('img');
-                if (titleEl) titleEl.textContent = videoInfo.author.startsWith('@') ? videoInfo.author : '@' + videoInfo.author.replace(/^@/, '');
-                if (subtitleEl) subtitleEl.textContent = 'Hasil dari API SnapTik';
+                const authorName = String(videoInfo.author).replace(/^@/, '');
+                if (titleEl) titleEl.textContent = '@' + authorName;
+                if (subtitleEl) subtitleEl.textContent = authorInfo.name && authorInfo.name !== videoInfo.author ? authorInfo.name : 'Akun dari tautan TikTok';
                 if (descriptionEl) descriptionEl.textContent = videoInfo.title;
                 if (images[0]) {
-                    if (videoInfo.cover) {
-                        images[0].src = videoInfo.cover;
-                        images[0].alt = 'Thumbnail video TikTok';
-                    } else {
-                        images[0].src = 'https://placehold.co/400x700/121212/25F4EE?text=TikTok+Video';
-                    }
+                    images[0].src = videoInfo.cover || 'https://placehold.co/400x700/121212/25F4EE?text=TikTok+Video';
+                    images[0].alt = 'Thumbnail video TikTok';
+                }
+                if (images[1] && videoInfo.avatar) {
+                    images[1].src = videoInfo.avatar;
+                    images[1].alt = 'Foto profil akun TikTok';
                 }
                 setButtonAvailability('mp4', true);
                 setButtonAvailability('mp3', Boolean(audioUrl));
@@ -430,15 +461,32 @@
                 showToast('URL unduhan dari API tidak valid.', 'error');
                 return;
             }
-            const anchor = document.createElement('a');
-            anchor.href = fileUrl;
-            anchor.target = '_blank';
-            anchor.rel = 'noopener noreferrer';
-            anchor.download = type === 'mp3' ? 'pazy-audio.mp3' : 'pazy-tiktok-video.mp4';
-            document.body.appendChild(anchor);
-            anchor.click();
-            anchor.remove();
-            showToast('Membuka link unduhan ' + type.toUpperCase() + '...', 'info');
+            // Coba unduh sebagai Blob agar browser tidak membuka tab baru.
+            // Ini memerlukan server file yang mengizinkan CORS.
+            showToast('Menyiapkan unduhan ' + type.toUpperCase() + '...', 'info');
+            fetch(fileUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error('Unduhan gagal (' + response.status + ').');
+                    return response.blob();
+                })
+                .then(blob => {
+                    const blobUrl = URL.createObjectURL(blob);
+                    const anchor = document.createElement('a');
+                    anchor.href = blobUrl;
+                    anchor.download = type === 'mp3' ? 'pazy-audio.mp3' : 'pazy-tiktok-video.mp4';
+                    anchor.style.display = 'none';
+                    document.body.appendChild(anchor);
+                    anchor.click();
+                    anchor.remove();
+                    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+                    showToast('Unduhan ' + type.toUpperCase() + ' dimulai.', 'success');
+                })
+                .catch(() => {
+                    // Jika CORS melarang fetch, arahkan tab yang sama ke URL file
+                    // agar tidak membuat tab baru. Download paksa tidak bisa dijamin lintas domain.
+                    showToast('Server file membatasi unduhan otomatis (CORS). Membuka file di tab ini.', 'info');
+                    window.location.href = fileUrl;
+                });
         }
 
         // Custom Toast Notification System (Replacement for alert/confirm)
