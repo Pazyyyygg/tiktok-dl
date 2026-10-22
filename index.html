@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pazy TikTok Downloader</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        tiktok: {
+                            cyan: '#25F4EE',
+                            magenta: '#FE2C55',
+                            dark: '#121212',
+                            card: '#1F1F1F'
+                        }
+                    },
+                    animation: {
+                        'spin-slow': 'spin 1.5s linear infinite',
+                        'fade-in': 'fadeIn 0.5s ease-out',
+                        'slide-up': 'slideUp 0.3s ease-out forwards'
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0f0f0f;
+            color: #ffffff;
+            background-image: radial-gradient(circle at 15% 50%, rgba(254, 44, 85, 0.05), transparent 25%),
+                              radial-gradient(circle at 85% 30%, rgba(37, 244, 238, 0.05), transparent 25%);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #121212;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Loader specific style */
+        .tiktok-loader {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid #25F4EE;
+            border-bottom: 4px solid #FE2C55;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            animation: spin 1s linear infinite;
+        }
+
+        /* Toast Container */
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .toast-message {
+            background-color: #1F1F1F;
+            border-left: 4px solid #25F4EE;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.3s ease-out forwards;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-tiktok-magenta selection:text-white">
+
+    <!-- Header/Navbar -->
+    <header class="w-full py-6 px-4 md:px-8 border-b border-gray-800 bg-[#0f0f0f]/80 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-4xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-2 cursor-pointer">
+                <i class="ph ph-tiktok-logo text-3xl text-white drop-shadow-[2px_2px_0px_#FE2C55] -drop-shadow-[2px_2px_0px_#25F4EE]"></i>
+                <h1 class="text-xl md:text-2xl font-bold tracking-tight">
+                    Pazy<span class="text-transparent bg-clip-text bg-gradient-to-r from-tiktok-cyan to-tiktok-magenta">DL</span>
+                </h1>
+            </div>
+            <nav>
+                <ul class="flex gap-6 text-sm font-medium text-gray-400">
+                    <li class="hover:text-white transition-colors cursor-pointer">Beranda</li>
+                    <li class="hover:text-white transition-colors cursor-pointer hidden md:block">Cara Kerja</li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow flex flex-col items-center px-4 py-12 md:py-20 w-full max-w-3xl mx-auto">
+        
+        <!-- Hero Section -->
+        <div class="text-center mb-10 w-full animate-fade-in">
+            <h2 class="text-3xl md:text-5xl font-extrabold mb-4 leading-tight">
+                Unduh Video TikTok <br/>
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-tiktok-cyan via-white to-tiktok-magenta">Tanpa Watermark</span>
+            </h2>
+            <p class="text-gray-400 text-sm md:text-base max-w-xl mx-auto">
+                Paste tautan video TikTok favoritmu di bawah ini untuk mengunduhnya dalam kualitas HD, MP4 biasa, atau ekstrak audionya menjadi MP3.
+            </p>
+        </div>
+
+        <!-- Input Section -->
+        <div class="w-full bg-tiktok-card p-6 md:p-8 rounded-2xl shadow-2xl border border-gray-800 animate-slide-up">
+            <form id="downloadForm" class="flex flex-col gap-5">
+                
+                <!-- URL Input -->
+                <div class="relative group">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+                        <i class="ph ph-link text-xl text-gray-400 group-focus-within:text-tiktok-cyan transition-colors"></i>
+                    </div>
+                    <input 
+                        type="url" 
+                        id="tiktokUrl" 
+                        placeholder="Contoh: https://vt.tiktok.com/ZSxxxxxxx/" 
+                        class="w-full bg-[#121212] border border-gray-700 text-white text-base md:text-lg rounded-xl focus:ring-2 focus:ring-tiktok-cyan focus:border-tiktok-cyan block pl-12 p-4 transition-all"
+                        required
+                        autocomplete="off"
+                    >
+                    <button type="button" id="pasteBtn" class="absolute inset-y-2 right-2 px-4 bg-gray-800 hover:bg-gray-700 text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
+                        <i class="ph ph-clipboard"></i> <span class="hidden md:inline">Tempel</span>
+                    </button>
+                </div>
+
+                <!-- Controls & Submit -->
+                <div class="flex flex-col md:flex-row items-center justify-end gap-4 mt-2">
+                    
+                    <!-- Fetch Button -->
+                    <button 
+                        type="submit" 
+                        id="fetchBtn"
+                        class="w-full md:w-auto px-8 py-3.5 bg-gradient-to-r from-tiktok-cyan to-tiktok-magenta hover:opacity-90 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(254,44,85,0.3)] transition-all flex items-center justify-center gap-2 transform active:scale-95"
+                    >
+                        <i class="ph ph-magnifying-glass text-xl"></i> Get Video
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Loading State (Hidden by default) -->
+        <div id="loadingState" class="hidden w-full flex flex-col items-center justify-center py-16 animate-fade-in">
+            <div class="tiktok-loader mb-4"></div>
+            <p class="text-gray-400 font-medium animate-pulse">Mengambil data video...</p>
+        </div>
+
+        <!-- Result Card (Hidden by default) -->
+        <div id="resultCard" class="hidden w-full mt-8 bg-tiktok-card rounded-2xl p-6 border border-gray-800 shadow-xl animate-slide-up">
+            <div class="flex flex-col md:flex-row gap-6">
+                <!-- Thumbnail Mock -->
+                <div class="w-full md:w-1/3 aspect-[9/16] bg-gray-800 rounded-xl overflow-hidden relative group">
+                    <!-- Placeholder Image via placehold.co -->
+                    <img src="https://placehold.co/400x700/121212/25F4EE?text=TikTok+Video\nPreview" alt="Video Thumbnail" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    
+                    <!-- Play icon overlay -->
+                    <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div class="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                            <i class="ph-fill ph-play text-2xl text-white"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Video Info & Download Actions -->
+                <div class="w-full md:w-2/3 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-3 mb-3">
+                            <img src="https://placehold.co/100x100/FE2C55/ffffff?text=User" alt="Avatar" class="w-10 h-10 rounded-full border border-gray-600">
+                            <div>
+                                <h3 class="font-bold text-white leading-tight">@pazytiktok</h3>
+                                <p class="text-xs text-gray-400">Pazy Official</p>
+                            </div>
+                        </div>
+                        <p class="text-gray-300 text-sm mb-6 line-clamp-3">
+                            Video TikTok tanpa watermark siap diunduh! Kualitas terbaik untuk Anda. 🔥✨ #pazy #tiktokdownloader
+                        </p>
+                    </div>
+
+                    <div class="flex flex-col gap-3">
+                        <button onclick="triggerDownload('mp4')" class="w-full py-3 px-4 bg-gradient-to-r from-tiktok-cyan to-[#00c3bf] hover:opacity-90 text-[#0f0f0f] font-bold rounded-xl flex items-center justify-between transition-transform active:scale-[0.98]">
+                            <span class="flex items-center gap-2"><i class="ph-bold ph-video-camera"></i> Download MP4 (HD)</span>
+                            <i class="ph-bold ph-download-simple"></i>
+                        </button>
+                        
+                        <button onclick="triggerDownload('mp3')" class="w-full py-3 px-4 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white font-medium rounded-xl flex items-center justify-between transition-transform active:scale-[0.98]">
+                            <span class="flex items-center gap-2"><i class="ph ph-music-note"></i> Download MP3</span>
+                            <i class="ph ph-download-simple"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full py-6 text-center text-sm text-gray-500 border-t border-gray-800 mt-auto">
+        <p>&copy; 2026 Pazy TikTok Download. Fast & Free.</p>
+    </footer>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+
+    <!-- Application Logic -->
+    <script>
+        // DOM Elements
+        const form = document.getElementById('downloadForm');
+        const urlInput = document.getElementById('tiktokUrl');
+        const pasteBtn = document.getElementById('pasteBtn');
+        const loadingState = document.getElementById('loadingState');
+        const resultCard = document.getElementById('resultCard');
+        const toastContainer = document.getElementById('toast-container');
+
+        // Handle Paste Button
+        pasteBtn.addEventListener('click', async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text) {
+                    urlInput.value = text;
+                    showToast('Tautan berhasil ditempel dari clipboard!', 'success');
+                }
+            } catch (err) {
+                // Fallback if clipboard API is denied or in iframe
+                urlInput.focus();
+                showToast('Izinkan akses clipboard, atau tahan kolom lalu pilih Tempel.', 'info');
+            }
+        });
+
+        // API SnapTik dari NexaDev
+        const API_BASE = 'https://api.nexadev.my.id/api/snaptik/';
+        let downloadLinks = { mp4: null, mp3: null };
+        let videoInfo = {};
+
+        function isHttpUrl(value) {
+            if (typeof value !== 'string' || !value.trim()) return false;
+            try {
+                const parsed = new URL(value);
+                return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+            } catch (_) { return false; }
+        }
+
+        function findFirstUrl(obj, keys, depth = 0) {
+            if (!obj || depth > 5) return null;
+            if (typeof obj === 'string') {
+                return isHttpUrl(obj) ? obj : null;
+            }
+            if (Array.isArray(obj)) {
+                for (const item of obj) {
+                    const found = findFirstUrl(item, keys, depth + 1);
+                    if (found) return found;
+                }
+                return null;
+            }
+            if (typeof obj === 'object') {
+                for (const key of keys) {
+                    if (typeof obj[key] === 'string' && isHttpUrl(obj[key])) return obj[key];
+                }
+                for (const value of Object.values(obj)) {
+                    const found = findFirstUrl(value, keys, depth + 1);
+                    if (found) return found;
+                }
+            }
+            return null;
+        }
+
+        function getNestedValue(obj, keys, depth = 0) {
+            if (!obj || typeof obj !== 'object' || depth > 5) return null;
+            for (const key of keys) {
+                if (typeof obj[key] === 'string' && obj[key].trim()) return obj[key];
+            }
+            for (const value of Object.values(obj)) {
+                if (value && typeof value === 'object') {
+                    const found = getNestedValue(value, keys, depth + 1);
+                    if (found) return found;
+                }
+            }
+            return null;
+        }
+
+        function setButtonAvailability(type, available) {
+            const button = document.querySelector(`button[onclick="triggerDownload('${type}')"]`);
+            if (!button) return;
+            button.disabled = !available;
+            button.classList.toggle('opacity-50', !available);
+            button.classList.toggle('cursor-not-allowed', !available);
+            button.title = available ? '' : 'Format ini tidak disediakan oleh API';
+        }
+
+        // Handle Form Submission (real API request)
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const url = urlInput.value.trim();
+
+            if (!url) {
+                showToast('Masukkan tautan TikTok terlebih dahulu!', 'error');
+                return;
+            }
+            let parsedUrl;
+            try { parsedUrl = new URL(url); } catch (_) {
+                showToast('Format tautan tidak valid.', 'error');
+                return;
+            }
+            if (!['tiktok.com', 'www.tiktok.com', 'vt.tiktok.com', 'vm.tiktok.com', 'm.tiktok.com'].includes(parsedUrl.hostname.toLowerCase())) {
+                showToast('Tautan harus berasal dari TikTok.', 'error');
+                return;
+            }
+
+            resultCard.classList.add('hidden');
+            loadingState.classList.remove('hidden');
+            const fetchBtn = document.getElementById('fetchBtn');
+            const originalBtnContent = fetchBtn.innerHTML;
+            fetchBtn.disabled = true;
+            fetchBtn.innerHTML = '<i class="ph ph-spinner-gap animate-spin text-xl"></i> Memproses...';
+            fetchBtn.classList.add('opacity-70', 'cursor-not-allowed');
+            downloadLinks = { mp4: null, mp3: null };
+            videoInfo = {};
+
+            try {
+                const endpoint = `${API_BASE}?url=${encodeURIComponent(url)}`;
+                const response = await fetch(endpoint, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
+                const raw = await response.text();
+                let data;
+                try { data = JSON.parse(raw); } catch (_) {
+                    throw new Error(response.ok
+                        ? 'Respons API bukan JSON. Coba lagi nanti.'
+                        : `API gagal (HTTP ${response.status}).`);
+                }
+                if (!response.ok) {
+                    throw new Error(data.message || data.error || `API gagal (HTTP ${response.status}).`);
+                }
+                if (data && (data.success === false || data.status === false || data.error)) {
+                    throw new Error(data.message || data.error || 'API tidak berhasil memproses tautan ini.');
+                }
+
+                const videoUrl = findFirstUrl(data, ['play', 'play_url', 'video_url', 'download_url', 'url', 'nowm', 'no_watermark', 'without_watermark', 'hdplay', 'mp4']);
+                const audioUrl = findFirstUrl(data, ['mp3', 'audio', 'audio_url', 'music', 'music_url', 'mp3_url']);
+                if (!videoUrl) throw new Error(data.message || 'Link video tidak ditemukan pada respons API.');
+
+                downloadLinks.mp4 = videoUrl;
+                downloadLinks.mp3 = audioUrl;
+                videoInfo.title = getNestedValue(data, ['title', 'desc', 'description', 'caption']) || 'Video TikTok siap diunduh';
+                videoInfo.author = getNestedValue(data, ['author', 'username', 'nickname', 'unique_id']) || 'TikTok';
+                videoInfo.cover = findFirstUrl(data, ['cover', 'cover_url', 'thumbnail', 'thumbnail_url', 'origin_cover', 'avatar']) || '';
+
+                const titleEl = resultCard.querySelector('h3');
+                const subtitleEl = titleEl?.parentElement?.querySelector('p');
+                const descriptionEl = resultCard.querySelector('.text-gray-300.text-sm');
+                const images = resultCard.querySelectorAll('img');
+                if (titleEl) titleEl.textContent = videoInfo.author.startsWith('@') ? videoInfo.author : '@' + videoInfo.author.replace(/^@/, '');
+                if (subtitleEl) subtitleEl.textContent = 'Hasil dari API SnapTik';
+                if (descriptionEl) descriptionEl.textContent = videoInfo.title;
+                if (images[0]) {
+                    if (videoInfo.cover) {
+                        images[0].src = videoInfo.cover;
+                        images[0].alt = 'Thumbnail video TikTok';
+                    } else {
+                        images[0].src = 'https://placehold.co/400x700/121212/25F4EE?text=TikTok+Video';
+                    }
+                }
+                setButtonAvailability('mp4', true);
+                setButtonAvailability('mp3', Boolean(audioUrl));
+                loadingState.classList.add('hidden');
+                resultCard.classList.remove('hidden');
+                showToast('Link video berhasil ditemukan!', 'success');
+                resultCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } catch (err) {
+                loadingState.classList.add('hidden');
+                const message = String(err && err.message || 'Terjadi kesalahan.');
+                if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
+                    showToast('API tidak bisa diakses dari browser (mungkin CORS). Perlu proxy backend.', 'error');
+                } else {
+                    showToast(message, 'error');
+                }
+            } finally {
+                fetchBtn.disabled = false;
+                fetchBtn.innerHTML = originalBtnContent;
+                fetchBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+            }
+        });
+
+        // Download menggunakan URL asli yang dikembalikan API
+        function triggerDownload(type) {
+            const fileUrl = downloadLinks[type];
+            if (!fileUrl) {
+                showToast(type === 'mp3'
+                    ? 'API ini tidak menyediakan link MP3 untuk video tersebut.'
+                    : 'Link download belum tersedia. Coba proses tautan lagi.', 'error');
+                return;
+            }
+            if (!isHttpUrl(fileUrl)) {
+                showToast('URL unduhan dari API tidak valid.', 'error');
+                return;
+            }
+            const anchor = document.createElement('a');
+            anchor.href = fileUrl;
+            anchor.target = '_blank';
+            anchor.rel = 'noopener noreferrer';
+            anchor.download = type === 'mp3' ? 'pazy-audio.mp3' : 'pazy-tiktok-video.mp4';
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            showToast('Membuka link unduhan ' + type.toUpperCase() + '...', 'info');
+        }
+
+        // Custom Toast Notification System (Replacement for alert/confirm)
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = 'toast-message';
+            
+            let icon = '<i class="ph-fill ph-info text-tiktok-cyan text-xl"></i>';
+            if(type === 'success') {
+                icon = '<i class="ph-fill ph-check-circle text-green-400 text-xl"></i>';
+                toast.style.borderLeftColor = '#4ade80';
+            } else if (type === 'error') {
+                icon = '<i class="ph-fill ph-warning-circle text-tiktok-magenta text-xl"></i>';
+                toast.style.borderLeftColor = '#FE2C55';
+            }
+
+            toast.innerHTML = `
+                ${icon}
+                <span class="text-sm font-medium">${message}</span>
+            `;
+            
+            toastContainer.appendChild(toast);
+
+            // Remove toast after 3 seconds
+            setTimeout(() => {
+                toast.style.animation = 'fadeOut 0.3s ease-in forwards';
+                // Add keyframe dynamically for fadeout if not exist, or just use opacity
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(10px)';
+                toast.style.transition = 'all 0.3s ease';
+                
+                setTimeout(() => {
+                    if(toast.parentElement) {
+                        toast.parentElement.removeChild(toast);
+                    }
+                }, 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
